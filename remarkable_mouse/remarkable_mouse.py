@@ -14,7 +14,9 @@ import paramiko.agent
 import paramiko.config
 
 from .common import reMarkable1, reMarkable2, reMarkablePro
-
+import AppKit
+info = AppKit.NSBundle.mainBundle().infoDictionary()
+info["LSBackgroundOnly"] = "1"
 logging.basicConfig(format='%(message)s')
 log = logging.getLogger('remouse')
 
@@ -146,6 +148,7 @@ def main():
         parser.add_argument('--region', action='store_true', default=False, help="Use a GUI to position the output area. Overrides --monitor")
         parser.add_argument('--threshold', metavar='THRESH', default=600, type=int, help="stylus pressure threshold (default 600)")
         parser.add_argument('--evdev', action='store_true', default=False, help="use evdev to support pen pressure (requires root, Linux only)")
+        parser.add_argument('--touch', default='normal', choices=['normal', 'button', 'click'], help="Touch mode")
 
         args = parser.parse_args()
 
@@ -179,6 +182,7 @@ def main():
             region=args.region,
             threshold=args.threshold,
             mode=args.mode,
+            touch=args.touch
         )
 
     except PermissionError:

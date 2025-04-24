@@ -14,7 +14,8 @@ log = logging.getLogger('remouse')
 # finger_width = 767
 # finger_height = 1023
 
-def read_tablet(rm, *, orientation, monitor_num, region, threshold, mode):
+
+def read_tablet(rm, *, orientation, monitor_num, region, threshold, mode, touch):
     """Loop forever and map evdev events to mouse
 
     Args:
@@ -36,6 +37,8 @@ def read_tablet(rm, *, orientation, monitor_num, region, threshold, mode):
     x = y = 0
 
     stream = rm.pen
+    last_touch_state = False
+    previous = 0
     while True:
         try:
             # read evdev events from file stream
@@ -44,12 +47,25 @@ def read_tablet(rm, *, orientation, monitor_num, region, threshold, mode):
             continue
 
         # parse evdev events
-        e_time, e_millis, e_type, e_code, e_value = struct.unpack(rm.e_format, data)
+        e_time, e_millis, e_type, e_code, e_value = struct.unpack(
+            rm.e_format, data)
 
         if log.level == logging.DEBUG:
             log_event(e_time, e_millis, e_type, e_code, e_value)
 
         try:
+
+            if codes[e_type][e_code] == 'BTN_STYLUS':
+                if touch == "button":
+                    if e_value == 1:
+                        mouse.press(Button.left)
+                    else:
+                        mouse.release(Button.left)
+                if touch=="normal":
+                    if e_value == 1:
+                        mouse.press(Button.right)
+                    else:
+                        mouse.release(Button.right)
             # handle x direction
             if codes[e_type][e_code] == 'ABS_X':
                 x = e_value
@@ -59,11 +75,26 @@ def read_tablet(rm, *, orientation, monitor_num, region, threshold, mode):
                 y = e_value
 
             # handle draw
+             # Tracks the previous touch state
+
+# Then modify your BTN_TOUCH handling:
             if codes[e_type][e_code] == 'BTN_TOUCH':
-                if e_value == 1:
-                    mouse.press(Button.left)
-                else:
-                    mouse.release(Button.left)
+                if touch == "click":
+
+                    current_touch = (e_value == 1)
+
+                    # On release (transition from touching to not touching)
+                    if not current_touch and last_touch_state:
+                        # Click action - press and release quickly
+                        mouse.press(Button.left)
+                        mouse.release(Button.left)
+
+                    last_touch_state = current_touch
+                elif touch == "normal":
+                    if e_value == 1:
+                        mouse.press(Button.left)
+                    else:
+                        mouse.release(Button.left)
 
             if codes[e_type][e_code] == 'SYN_REPORT':
                 mapped_x, mapped_y = rm.remap(
